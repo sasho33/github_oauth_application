@@ -5,6 +5,7 @@
 const path = require('path');
 require('dotenv').config();
 const express = require('express');
+const session = require('express-session');
 const partials = require('express-partials');
 const passport = require('passport');
 const GitHubStrategy = require('passport-github2').Strategy;
@@ -52,7 +53,7 @@ app.set('view engine', 'ejs');
 app.use(partials());
 app.use(express.json());
 app.use(express.static(__dirname + '/public'));
-app.use(session({ secret: 'codecademy', resave: false, saveUnitialized: false }));
+app.use(session({ secret: 'codecademy', resave: false, saveUninitialized: false }));
 app.use(passport.initialize());
 app.use(passport.session());
 /*
@@ -63,7 +64,7 @@ app.get('/', (req, res) => {
   res.render('index', { user: req.user });
 });
 
-app.get('/account', (req, res) => {
+app.get('/account', ensureAuthenticated, (req, res) => {
   res.render('account', { user: req.user });
 });
 
@@ -76,6 +77,15 @@ app.get('/logout', (req, res) => {
   res.redirect('/');
 });
 
+app.get('/auth/github', passport.authenticate('github', { scope: ['user'] }));
+app.get(
+  '/auth/github/callback',
+  passport.authenticate('github', {
+    failureRedirect: '/login', // Redirect to login page on failed authorization
+    successRedirect: '/', // Redirect to home page after successful authorization
+  }),
+);
+
 /*
  * Listener
  */
@@ -85,3 +95,11 @@ app.listen(PORT, () => console.log(`Listening on ${PORT}`));
 /*
  * ensureAuthenticated Callback Function
  */
+// Middleware function to verify if a request is authenticated
+function ensureAuthenticated(req, res, next) {
+  if (req.isAuthenticated()) {
+    return next();
+  } else {
+    res.redirect('/login');
+  }
+}
